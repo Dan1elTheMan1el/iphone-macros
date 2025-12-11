@@ -1,0 +1,37 @@
+{
+    "referenceWidth": 390,
+    "referenceHeight": 844,
+    "wordHunt": {
+        "4x4": {
+            "top_left": [
+                59,
+                375
+            ],
+            "bottom_right": [
+                332,
+                648
+            ]
+        },
+        "5x5": {
+            "top_left": [
+                41,
+                357
+            ],
+            "bottom_right": [
+                349,
+                666
+            ]
+        }
+    },
+    "anagrams": {
+        "letter_y": 693,
+        "letter_x_bounds": [
+            29,
+            361
+        ],
+        "enter": [
+            196,
+            497
+        ]
+    }
+}
