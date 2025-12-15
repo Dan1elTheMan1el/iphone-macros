@@ -2,8 +2,69 @@ from utils.mirroring import *
 import json
 from pynput.mouse import Controller, Button
 import time
+import cv2
+import mss
+import numpy as np
+import os
 
 stop_flag = False
+
+scan_ocr = False
+
+def parseBoardOCR(bounds, deviceParams):
+    lw = deviceParams["wordBites"]["letter_size"] / deviceParams["referenceWidth"] * bounds[2]
+    boardText = ""
+    for r in range(9):
+        for c in range(8):
+            letterPos = tileCoords(r, c, bounds, deviceParams)
+            letterBounds = {"top": letterPos[1] - lw/2, "left": letterPos[0] - lw/2, "width": lw, "height": lw}
+            
+            with mss.mss() as sct:
+                img_grab = sct.grab(letterBounds)
+                width = img_grab.width
+                height = img_grab.height
+                
+                raw_bytes = img_grab.rgb
+                byte_list = list(raw_bytes)
+                img_cv = np.array(byte_list, dtype=np.uint8).reshape((height, width, 3))
+                
+            gray = cv2.cvtColor(img_cv, cv2.COLOR_BGR2GRAY)
+            _, final_image_array = cv2.threshold(gray, 127, 255, cv2.THRESH_BINARY_INV)
+            inverted_image_array = cv2.bitwise_not(final_image_array)
+
+            scaled_image = cv2.resize(
+                inverted_image_array, 
+                (23, 23), 
+                interpolation=cv2.INTER_NEAREST
+            )
+            
+            padded_capture = cv2.copyMakeBorder(
+                scaled_image, 
+                10, 10, 10, 10, 
+                cv2.BORDER_CONSTANT, value=[255]
+            )
+            
+            best_match_score = -1
+            best_match_char = None
+            
+            for char in "ABCDEFGHIJKLMNOPQRSTUVWXYZ":
+                template_path = os.path.join("ocr_templates" , f"{char}.png")
+                template = cv2.imread(template_path, 0)
+
+                result = cv2.matchTemplate(padded_capture, template, cv2.TM_CCOEFF_NORMED)
+                _, max_val, _, _ = cv2.minMaxLoc(result)
+                
+                score = max_val 
+                
+                if score > best_match_score:
+                    best_match_score = score
+                    best_match_char = char
+                    
+            if best_match_score >= 0.8: 
+                boardText += best_match_char
+            else:
+                boardText += " "
+    return boardText
 
 def parsePieces(boardText):
     boardText = boardText.replace("1", " ").replace("2", "  ").replace("3", "   ").replace("4", "    ").replace("5", "     ").replace("6", "      ").replace("7", "       ").replace("8", "        ")
@@ -114,14 +175,14 @@ def dragPiece(r1, c1, r2, c2, t, bounds, params, mouse):
     x1, y1 = tileCoords(r1, c1, bounds, params)
     x2, y2 = tileCoords(r2, c2, bounds, params)
     mouse.position = (x1, y1)
-    time.sleep(0.05)
+    time.sleep(0.02)
     mouse.press(Button.left)
     steps = int(t / 0.05)
     for step in range(1, steps + 1):
         mouse.position = (int(x1 + (x2 - x1) * step / steps), int(y1 + (y2 - y1) * step / steps))
         time.sleep(0.05)
     mouse.release(Button.left)
-    time.sleep(0.05)
+    time.sleep(0.02)
 
 def findSpot(board, dir, length):
     for r in range(8, -1, -1):
@@ -203,18 +264,25 @@ def solveWordBites():
     global stop_flag
 
     # Find all possible words
-    pieces = parsePieces(input("Paste board state:\n"))
+    bounds = getBounds()
+    deviceParams = json.load(open("resources/deviceParams.json"))
+    # pieces = parsePieces(input("Paste board state:\n"))
+    print("Press Enter to scan the board via OCR...")
+    while not scan_ocr:
+        time.sleep(0.1)
+    boardText = parseBoardOCR(bounds, deviceParams)
+    pieces = parsePieces(boardText)
+
     board = initializeBoard(pieces)
     allWords = getAllWords(pieces)
     print(f"Found {len(allWords)} possible words:")
 
     # Move pieces to starting positions
-    bounds = getBounds()
-    deviceParams = json.load(open("resources/deviceParams.json"))
+
     mouse = Controller()
     focusWindow()
 
-    dragTime = 0.1
+    dragTime = 0.05
 
     basePos = getBasePositions(pieces)
 
@@ -227,7 +295,7 @@ def solveWordBites():
             col = 0
             for pid in word[1]:
                 if stop_flag:
-                    print("\n⏹️  Macro stopped by user")
+                    print("\nMacro stopped!")
                     return
                 piece = pieces[pid]
                 if piece["dir"] == "x":
@@ -245,7 +313,7 @@ def solveWordBites():
             row = 0
             for pid in word[1]:
                 if stop_flag:
-                    print("\n⏹️  Macro stopped by user")
+                    print("\nMacro stopped!")
                     return
                 piece = pieces[pid]
                 if piece["dir"] == "y":
@@ -297,7 +365,7 @@ def solveWordBites():
         # Return any pieces that are not in the right position and in the way
         for pid in word[1]:
             if stop_flag:
-                print("\n⏹️  Macro stopped by user")
+                print("\nMacro stopped!")
                 return
             piece = pieces[pid]
             if len(piece["letters"]) == 1:

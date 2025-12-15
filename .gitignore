@@ -1,3 +1,5 @@
 .venv
 .DS_Store
 utils/__pycache__/
+test.py
+resources/SF-UI-Display-Bold.otf

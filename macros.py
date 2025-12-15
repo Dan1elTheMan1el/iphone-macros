@@ -1,13 +1,16 @@
 from utils import wordHunter, anagrammer, wordBiter
 from pynput import keyboard
+import os
 
 # Keyboard listener for stop functionality
 def on_press(key):
     if key == keyboard.Key.alt_r:
-        print("\n⚠️  Right Alt pressed - stopping macro...")
+        print("\nRight Alt pressed - stopping macro...")
         wordHunter.stop_flag = True
         anagrammer.stop_flag = True
         wordBiter.stop_flag = True
+    elif key == keyboard.Key.enter:
+        wordBiter.scan_ocr = True
 # Start keyboard listener in background thread
 listener = keyboard.Listener(on_press=on_press)
 listener.start()
