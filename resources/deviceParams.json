@@ -4,24 +4,26 @@
     "wordHunt": {
         "4x4": {
             "top_left": [
-                59,
-                375
+                89,
+                405
             ],
             "bottom_right": [
-                332,
-                648
+                302,
+                620
             ]
         },
         "5x5": {
             "top_left": [
-                41,
-                357
+                66,
+                384
             ],
             "bottom_right": [
-                349,
-                666
+                323,
+                641
             ]
-        }
+        },
+        "4x4_letter_size": 50,
+        "5x5_letter_size": 40
     },
     "anagrams": {
         "letter_y": 693,

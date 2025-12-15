@@ -177,12 +177,12 @@ def dragPiece(r1, c1, r2, c2, t, bounds, params, mouse):
     mouse.position = (x1, y1)
     time.sleep(0.02)
     mouse.press(Button.left)
-    steps = int(t / 0.05)
+    steps = int(t / 0.02)
     for step in range(1, steps + 1):
         mouse.position = (int(x1 + (x2 - x1) * step / steps), int(y1 + (y2 - y1) * step / steps))
-        time.sleep(0.05)
+        time.sleep(0.02)
     mouse.release(Button.left)
-    time.sleep(0.02)
+    time.sleep(0.01)
 
 def findSpot(board, dir, length):
     for r in range(8, -1, -1):
@@ -267,7 +267,7 @@ def solveWordBites():
     bounds = getBounds()
     deviceParams = json.load(open("resources/deviceParams.json"))
     # pieces = parsePieces(input("Paste board state:\n"))
-    print("Press Enter to scan the board via OCR...")
+    print("Press Left Alt to scan the board via OCR...")
     while not scan_ocr:
         time.sleep(0.1)
     boardText = parseBoardOCR(bounds, deviceParams)
@@ -282,7 +282,7 @@ def solveWordBites():
     mouse = Controller()
     focusWindow()
 
-    dragTime = 0.05
+    dragTime = 0.02
 
     basePos = getBasePositions(pieces)
 
