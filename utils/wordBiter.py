@@ -2,10 +2,6 @@ from utils.mirroring import *
 import json
 from pynput.mouse import Controller, Button
 import time
-import cv2
-import mss
-import numpy as np
-import os
 
 stop_flag = False
 
@@ -16,52 +12,10 @@ def parseBoardOCR(bounds, deviceParams):
     boardText = ""
     for r in range(9):
         for c in range(8):
-            letterPos = tileCoords(r, c, bounds, deviceParams)
-            letterBounds = {"top": letterPos[1] - lw/2, "left": letterPos[0] - lw/2, "width": lw, "height": lw}
-            
-            with mss.mss() as sct:
-                img_grab = sct.grab(letterBounds)
-                width = img_grab.width
-                height = img_grab.height
-                
-                raw_bytes = img_grab.rgb
-                byte_list = list(raw_bytes)
-                img_cv = np.array(byte_list, dtype=np.uint8).reshape((height, width, 3))
-                
-            gray = cv2.cvtColor(img_cv, cv2.COLOR_BGR2GRAY)
-            _, final_image_array = cv2.threshold(gray, 127, 255, cv2.THRESH_BINARY_INV)
-            inverted_image_array = cv2.bitwise_not(final_image_array)
-
-            scaled_image = cv2.resize(
-                inverted_image_array, 
-                (23, 23), 
-                interpolation=cv2.INTER_NEAREST
-            )
-            
-            padded_capture = cv2.copyMakeBorder(
-                scaled_image, 
-                10, 10, 10, 10, 
-                cv2.BORDER_CONSTANT, value=[255]
-            )
-            
-            best_match_score = -1
-            best_match_char = None
-            
-            for char in "ABCDEFGHIJKLMNOPQRSTUVWXYZ":
-                template_path = os.path.join("ocr_templates" , f"{char}.png")
-                template = cv2.imread(template_path, 0)
-
-                result = cv2.matchTemplate(padded_capture, template, cv2.TM_CCOEFF_NORMED)
-                _, max_val, _, _ = cv2.minMaxLoc(result)
-                
-                score = max_val 
-                
-                if score > best_match_score:
-                    best_match_score = score
-                    best_match_char = char
-                    
-            if best_match_score >= 0.8: 
-                boardText += best_match_char
+            x, y = tileCoords(r, c, bounds, deviceParams)
+            scan = scanPiece(x, y, lw)
+            if scan is not None: 
+                boardText += scan
             else:
                 boardText += " "
     return boardText
@@ -267,7 +221,7 @@ def solveWordBites():
     bounds = getBounds()
     deviceParams = json.load(open("resources/deviceParams.json"))
     # pieces = parsePieces(input("Paste board state:\n"))
-    print("Press Left Alt to scan the board via OCR...")
+    
     while not scan_ocr:
         time.sleep(0.1)
     boardText = parseBoardOCR(bounds, deviceParams)
@@ -276,6 +230,8 @@ def solveWordBites():
     board = initializeBoard(pieces)
     allWords = getAllWords(pieces)
     print(f"Found {len(allWords)} possible words:")
+
+    print("Press Right Alt at any time to stop the macro.\n")
 
     # Move pieces to starting positions
 
@@ -388,8 +344,8 @@ def solveWordBites():
                 dragPiece(piece["pos"][0], piece["pos"][1], basePos[pid][0], basePos[pid][1], dragTime, bounds, deviceParams, mouse)
                 piece["pos"] = basePos[pid]
         
-        boardState = initializeBoard(pieces)
-        print("\n".join(["".join(row) for row in boardState]))
-        print("Next Word:")
-        print(f"{nextWord[0]} (dir: {nextWord[2]})")
-        print("====================")
+        # boardState = initializeBoard(pieces)
+        # print("\n".join(["".join(row) for row in boardState]))
+        # print("Next Word:")
+        # print(f"{nextWord[0]} (dir: {nextWord[2]})")
+        # print("====================")

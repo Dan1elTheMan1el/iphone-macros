@@ -2,10 +2,6 @@ from utils.mirroring import *
 import json
 from pynput.mouse import Controller, Button
 import time
-import mss
-import cv2
-import numpy as np
-import os
 
 # Global flag to stop macro execution (set by keyboard listener in macros.py)
 stop_flag = False
@@ -60,54 +56,10 @@ def getLetters(size, bounds, deviceParams):
     letters = ""
     for r in range(size):
         for c in range(size):
-            tilePos = letterPos(bounds, r, c, size, deviceParams)
-            letterBounds = {"top": tilePos[1] - lw/2, "left": tilePos[0] - lw/2, "width": lw, "height": lw}
-            
-            with mss.mss() as sct:
-                img_grab = sct.grab(letterBounds)
-                width = img_grab.width
-                height = img_grab.height
-                
-                raw_bytes = img_grab.rgb
-                byte_list = list(raw_bytes)
-                img_cv = np.array(byte_list, dtype=np.uint8).reshape((height, width, 3))
-                
-            gray = cv2.cvtColor(img_cv, cv2.COLOR_BGR2GRAY)
-            _, final_image_array = cv2.threshold(gray, 127, 255, cv2.THRESH_BINARY_INV)
-            inverted_image_array = cv2.bitwise_not(final_image_array)
-
-            # cv2.imwrite("debug_letter.png", inverted_image_array)
-
-            scaled_image = cv2.resize(
-                inverted_image_array, 
-                (23, 23), 
-                interpolation=cv2.INTER_NEAREST
-            )
-            
-            padded_capture = cv2.copyMakeBorder(
-                scaled_image, 
-                10, 10, 10, 10, 
-                cv2.BORDER_CONSTANT, value=[255]
-            )
-            
-            best_match_score = -1
-            best_match_char = None
-            
-            for char in "ABCDEFGHIJKLMNOPQRSTUVWXYZ":
-                template_path = os.path.join("ocr_templates" , f"{char}.png")
-                template = cv2.imread(template_path, 0)
-
-                result = cv2.matchTemplate(padded_capture, template, cv2.TM_CCOEFF_NORMED)
-                _, max_val, _, _ = cv2.minMaxLoc(result)
-                
-                score = max_val 
-                
-                if score > best_match_score:
-                    best_match_score = score
-                    best_match_char = char
-                    
-            if best_match_score >= 0.8: 
-                letters += best_match_char
+            x, y = letterPos(bounds, r, c, size, deviceParams)
+            scan = scanPiece(x, y, lw)
+            if scan is not None:
+                letters += scan
             else:
                 letters += " "
     return letters
@@ -152,13 +104,13 @@ def solveWordHunt(size):
 
     global stop_flag
     global scan_ocr
-    stop_flag = False  # Reset flag at start of macro
 
     while not scan_ocr:
         time.sleep(0.1)
     
     letters = getLetters(size, bounds, deviceParams)
-    print(letters)
+
+    print("Press Right Alt at any time to stop the macro.\n")
 
     paths = findPaths(letters)
     size = int(len(letters) ** 0.5)
